@@ -6,52 +6,78 @@ import * as THREE from "three";
 
 /**
  * The DRC emblem is built entirely from primitive box "bars" — no GLTF
- * import needed. Each bar is one entry below: a final position/rotation
- * plus a randomized scattered starting pose. On mount, every bar animates
- * from its scattered pose into its final pose with a staggered delay
- * (power3-out easing), producing the "precision jewel assembly" effect
- * described in the brief. A short emissive flash marks each bar's landing.
+ * import needed. Bars are generated from pairs of 2D points via
+ * `prepareBar`, so every segment lines up exactly at its corners
+ * (hand-tuned position/rotation values were the source of the earlier
+ * misaligned, messy result).
+ *
+ * Shape: a symmetric shield/banner silhouette (flat top, angled shoulders,
+ * near-vertical sides, pointed base) with a nested inner outline, plus an
+ * abstract angular glyph (spine + two diagonals) suggesting an interlaced
+ * monogram without needing to be literally legible — matching the brief's
+ * "barras metálicas retas e diagonais entrelaçadas".
  */
 
-interface BarSpec {
+type Pt = [number, number];
+
+interface BarDef {
   id: string;
-  size: [number, number, number];
-  position: [number, number, number];
-  rotation: [number, number, number];
-  delay: number; // seconds, stagger offset
+  p1: Pt;
+  p2: Pt;
+  thickness: number;
+  depth: number;
+  delay: number;
 }
 
-const DURATION = 0.9; // seconds per-bar travel time
-const TOTAL_STAGGER_SPAN = 2.2; // seconds across which delays are spread
+const DURATION = 0.85;
+const OVERLAP = 0.05; // extends each bar slightly so corners visually miter instead of gapping
 
-// Shield outline (a hexagonal/shield silhouette made of 6 straight bars)
-// plus interior bars forming an abstract, angular "R" glyph — echoing the
-// reference emblem's interlocking geometric monogram.
-const barSpecs: BarSpec[] = [
-  // --- Outer shield outline ---
-  { id: "top", size: [1.6, 0.09, 0.09], position: [0, 1.35, 0], rotation: [0, 0, 0], delay: 0 },
-  { id: "upper-left", size: [0.95, 0.09, 0.09], position: [-0.78, 0.95, 0], rotation: [0, 0, Math.PI / 2.55], delay: 0.08 },
-  { id: "upper-right", size: [0.95, 0.09, 0.09], position: [0.78, 0.95, 0], rotation: [0, 0, -Math.PI / 2.55], delay: 0.16 },
-  { id: "left", size: [1.15, 0.09, 0.09], position: [-1.1, 0.15, 0], rotation: [0, 0, Math.PI / 2], delay: 0.24 },
-  { id: "right", size: [1.15, 0.09, 0.09], position: [1.1, 0.15, 0], rotation: [0, 0, Math.PI / 2], delay: 0.32 },
-  { id: "lower-left", size: [1.05, 0.09, 0.09], position: [-0.55, -0.75, 0], rotation: [0, 0, -Math.PI / 3.6], delay: 0.4 },
-  { id: "lower-right", size: [1.05, 0.09, 0.09], position: [0.55, -0.75, 0], rotation: [0, 0, Math.PI / 3.6], delay: 0.48 },
-  { id: "point", size: [0.55, 0.09, 0.09], position: [0, -1.42, 0], rotation: [0, 0, Math.PI / 2], delay: 0.56 },
-
-  // --- Nested inner frame ---
-  { id: "inner-top", size: [1.05, 0.07, 0.07], position: [0, 0.95, 0.02], rotation: [0, 0, 0], delay: 0.68 },
-  { id: "inner-left", size: [1.55, 0.07, 0.07], position: [-0.55, 0.15, 0.02], rotation: [0, 0, Math.PI / 2], delay: 0.76 },
-
-  // --- Abstract "R" glyph bars (diagonal stroke + leg) ---
-  { id: "r-spine", size: [1.5, 0.09, 0.07], position: [-0.05, 0.15, 0.05], rotation: [0, 0, Math.PI / 2], delay: 0.9 },
-  { id: "r-bowl-top", size: [0.68, 0.08, 0.07], position: [0.25, 0.72, 0.05], rotation: [0, 0, -0.55], delay: 1.0 },
-  { id: "r-bowl-bottom", size: [0.62, 0.08, 0.07], position: [0.25, 0.32, 0.05], rotation: [0, 0, 0.6], delay: 1.1 },
-  { id: "r-leg", size: [0.85, 0.08, 0.07], position: [0.32, -0.55, 0.05], rotation: [0, 0, -0.78], delay: 1.2 },
-
-  // --- "C" arc suggestion, right side ---
-  { id: "c-arc-top", size: [0.7, 0.08, 0.06], position: [0.55, 0.68, -0.02], rotation: [0, 0, -0.9], delay: 1.32 },
-  { id: "c-arc-bottom", size: [0.7, 0.08, 0.06], position: [0.55, -0.38, -0.02], rotation: [0, 0, 0.9], delay: 1.44 },
+// --- Outer shield outline (7-point closed polygon, clockwise from top-left) ---
+const outer: Pt[] = [
+  [-0.6, 0.82], // A top-left
+  [0.6, 0.82], // B top-right
+  [0.92, 0.32], // C right shoulder
+  [0.92, -0.32], // D right base of vertical
+  [0.0, -1.1], // E bottom point
+  [-0.92, -0.32], // F left base of vertical
+  [-0.92, 0.32], // G left shoulder
 ];
+
+// --- Inner nested outline: same polygon, scaled toward center ---
+const inner: Pt[] = outer.map(([x, y]) => [x * 0.8, y * 0.8 - 0.03] as Pt);
+
+function polygonEdges(
+  points: Pt[],
+  prefix: string,
+  thickness: number,
+  depth: number,
+  delayStart: number,
+  delayStep: number
+): BarDef[] {
+  return points.map((p1, i) => {
+    const p2 = points[(i + 1) % points.length] as Pt;
+    return {
+      id: `${prefix}-${i}`,
+      p1,
+      p2,
+      thickness,
+      depth,
+      delay: delayStart + i * delayStep,
+    };
+  });
+}
+
+const outerBars = polygonEdges(outer, "outer", 0.07, 0.075, 0, 0.07);
+const innerBars = polygonEdges(inner, "inner", 0.05, 0.06, 0.55, 0.06);
+
+// --- Abstract angular glyph: vertical spine + two diagonals radiating right ---
+const glyphBars: BarDef[] = [
+  { id: "glyph-spine", p1: [-0.02, 0.5], p2: [-0.02, -0.62], thickness: 0.075, depth: 0.09, delay: 1.05 },
+  { id: "glyph-upper", p1: [-0.02, 0.14], p2: [0.48, 0.56], thickness: 0.075, depth: 0.09, delay: 1.18 },
+  { id: "glyph-lower", p1: [-0.02, 0.02], p2: [0.48, -0.5], thickness: 0.075, depth: 0.09, delay: 1.3 },
+];
+
+const barSpecs: BarDef[] = [...outerBars, ...innerBars, ...glyphBars];
 
 function powerOut3(t: number) {
   const clamped = Math.min(Math.max(t, 0), 1);
@@ -59,14 +85,48 @@ function powerOut3(t: number) {
 }
 
 function randomScatterOffset(seed: number): THREE.Vector3 {
-  // Deterministic-ish scatter so SSR/CSR don't mismatch violently; seed varies per bar.
   const angle = seed * 2.399963; // golden-angle-ish spread
-  const radius = 2.4 + (seed % 3) * 0.6;
+  const radius = 2.1 + (seed % 3) * 0.5;
   return new THREE.Vector3(
     Math.cos(angle) * radius,
-    Math.sin(angle * 1.3) * radius * 0.6 + 0.5,
-    Math.sin(angle) * radius * 0.8 - 1.2
+    Math.sin(angle * 1.3) * radius * 0.6 + 0.4,
+    Math.sin(angle) * radius * 0.7 - 1.0
   );
+}
+
+interface PreparedBar {
+  id: string;
+  size: [number, number, number];
+  position: [number, number, number];
+  rotation: [number, number, number];
+  delay: number;
+  scatterOffset: THREE.Vector3;
+  scatterRotation: THREE.Euler;
+}
+
+function prepareBar(spec: BarDef, seed: number): PreparedBar {
+  const [x1, y1] = spec.p1;
+  const [x2, y2] = spec.p2;
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const length = Math.sqrt(dx * dx + dy * dy) + OVERLAP;
+  const angle = Math.atan2(dy, dx);
+  const cx = (x1 + x2) / 2;
+  const cy = (y1 + y2) / 2;
+
+  return {
+    id: spec.id,
+    size: [length, spec.thickness, spec.depth],
+    position: [cx, cy, 0],
+    rotation: [0, 0, angle],
+    delay: spec.delay,
+    scatterOffset: randomScatterOffset(seed),
+    scatterRotation: new THREE.Euler(
+      (Math.random() - 0.5) * 2.2,
+      (Math.random() - 0.5) * 2.2,
+      (Math.random() - 0.5) * 2.2
+    ),
+  };
 }
 
 interface EmblemProps {
@@ -78,19 +138,7 @@ export default function Emblem({ onAssembled }: EmblemProps) {
   const startTime = useRef<number | null>(null);
   const firedComplete = useRef(false);
 
-  const bars = useMemo(
-    () =>
-      barSpecs.map((spec, i) => ({
-        ...spec,
-        scatterOffset: randomScatterOffset(i + 1),
-        scatterRotation: new THREE.Euler(
-          (Math.random() - 0.5) * 2.4,
-          (Math.random() - 0.5) * 2.4,
-          (Math.random() - 0.5) * 2.4
-        ),
-      })),
-    []
-  );
+  const bars = useMemo(() => barSpecs.map((spec, i) => prepareBar(spec, i + 1)), []);
 
   const meshRefs = useRef<(THREE.Mesh | null)[]>([]);
   const materialRefs = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
@@ -122,12 +170,11 @@ export default function Emblem({ onAssembled }: EmblemProps) {
         THREE.MathUtils.lerp(bar.scatterRotation.z, finalRot.z, eased)
       );
 
-      const opacity = THREE.MathUtils.lerp(0.15, 1, Math.min(eased * 1.4, 1));
+      const opacity = THREE.MathUtils.lerp(0.1, 1, Math.min(eased * 1.4, 1));
       if (mat) {
         mat.opacity = opacity;
-        // Landing flash: brief emissive spike right as the bar reaches ~95%+.
-        const flash = localT > 0.92 && localT < 1.3 ? Math.sin(((localT - 0.92) / 0.38) * Math.PI) : 0;
-        mat.emissiveIntensity = 0.15 + flash * 1.4;
+        const flash = localT > 0.9 && localT < 1.35 ? Math.sin(((localT - 0.9) / 0.45) * Math.PI) : 0;
+        mat.emissiveIntensity = 0.08 + flash * 1.1;
       }
     });
 
@@ -136,15 +183,14 @@ export default function Emblem({ onAssembled }: EmblemProps) {
       onAssembled?.();
     }
 
-    // Slow continuous idle rotation once assembled (also gently rotates while assembling, subtly).
     if (groupRef.current) {
-      const idleSpeed = allDone ? (Math.PI * 2) / 50 : (Math.PI * 2) / 400;
+      const idleSpeed = allDone ? (Math.PI * 2) / 55 : (Math.PI * 2) / 500;
       groupRef.current.rotation.y += idleSpeed * (1 / 60);
     }
   });
 
   return (
-    <group ref={groupRef} position={[0, 0.45, 0]} scale={0.62}>
+    <group ref={groupRef} position={[0, 0.15, 0]} scale={0.85}>
       {bars.map((bar, i) => (
         <mesh
           key={bar.id}
@@ -159,13 +205,14 @@ export default function Emblem({ onAssembled }: EmblemProps) {
             ref={(el) => {
               materialRefs.current[i] = el;
             }}
-            color="#C9A94F"
+            color="#D4B25C"
             metalness={1}
-            roughness={0.15}
+            roughness={0.2}
+            envMapIntensity={1.6}
             emissive="#C9A94F"
-            emissiveIntensity={0.15}
+            emissiveIntensity={0.08}
             transparent
-            opacity={0.15}
+            opacity={0.1}
           />
         </mesh>
       ))}
