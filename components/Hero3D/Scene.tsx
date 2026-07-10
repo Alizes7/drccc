@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Environment, ContactShadows, PerspectiveCamera } from "@react-three/drei";
+import { Environment, Lightformer, ContactShadows, PerspectiveCamera } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import * as THREE from "three";
 import Pedestal from "./Pedestal";
@@ -77,7 +77,22 @@ export default function Scene() {
       <directionalLight position={[-4, 2, -2]} intensity={0.5} color="#FFF6E5" />
       <directionalLight position={[0, 1.5, -4]} intensity={0.6} color="#C9A94F" />
 
-      <Environment preset="studio" />
+      {/*
+        Studio-style reflections built entirely from procedural Lightformers
+        instead of Environment's preset="studio" (which fetches an HDRI from
+        an external CDN at runtime). That external fetch is blocked by the
+        site's own CSP (connect-src 'self') and would otherwise throw an
+        unhandled rejection during hydration — this version needs no network
+        access at all.
+      */}
+      <Environment resolution={256}>
+        <group rotation={[0, Math.PI / 2, 0]}>
+          <Lightformer intensity={2.5} color="#FFFFFF" position={[0, 3, -3]} scale={[4, 4, 1]} form="rect" />
+          <Lightformer intensity={1.2} color="#C9A94F" position={[-3, 1, 1]} scale={[2, 3, 1]} form="rect" />
+          <Lightformer intensity={1.2} color="#FFF6E5" position={[3, 1, 1]} scale={[2, 3, 1]} form="rect" />
+          <Lightformer intensity={0.8} color="#FFFFFF" position={[0, -3, 2]} scale={[4, 2, 1]} form="rect" />
+        </group>
+      </Environment>
 
       <RigWithParallax assembled={assembled} />
 

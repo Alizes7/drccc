@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import StaticFallback from "./StaticFallback";
+import Hero3DErrorBoundary from "./ErrorBoundary";
 
 // Three.js is lazy-loaded and never server-rendered, so it doesn't affect
 // the LCP of the rest of the page.
@@ -41,7 +42,13 @@ export default function Hero3D() {
 
   return (
     <div className="relative h-full w-full" role="img" aria-label="Emblema dourado DRC materializando-se sobre uma base de mármore branco">
-      {checked && canRender3D ? <Scene /> : <StaticFallback />}
+      {checked && canRender3D ? (
+        <Hero3DErrorBoundary>
+          <Scene />
+        </Hero3DErrorBoundary>
+      ) : (
+        <StaticFallback />
+      )}
     </div>
   );
 }
