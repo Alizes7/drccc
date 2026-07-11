@@ -19,21 +19,29 @@ durante o build (`next/font/google`).
 
 ## O que foi implementado conforme o briefing
 
-- **Hero 3D**: pedestal de mármore (`MeshPhysicalMaterial`, veios dourados via
-  textura de canvas procedural) + emblema dourado montado inteiramente a
-  partir de `boxGeometry` (sem GLTF), com 16 segmentos que partem dispersos
-  e convergem com stagger e easing `power3-out`, flash emissivo dourado ao
-  encaixar, HDRI de estúdio (`Environment preset="studio"`), `ContactShadows`,
-  bloom sutil via `@react-three/postprocessing`, dolly de câmera e rotação
-  idle contínua após a montagem, e parallax de mouse limitado a ±8°.
-- **Fallback obrigatório**: detecção de `prefers-reduced-motion`, ausência de
-  WebGL e heurística de mobile de baixo desempenho (`deviceMemory`/`saveData`)
-  — nesses casos renderiza a imagem estática do frame final
-  (`public/emblem-poster.jpg`, gerada a partir da referência enviada) com
-  `alt` descritivo, servindo também como alternativa para leitores de tela.
-- **Lazy-load do Three.js**: `next/dynamic(..., { ssr: false })` — o bundle
-  de Three.js não entra no First Load JS da página (confirmado no build: a
-  rota `/` fica em ~95 kB de First Load JS).
+- **Hero com sequência de frames scroll-driven**: em vez de recriar o emblema
+  em 3D, o hero usa diretamente os 240 frames de referência que você
+  forneceu. Foram selecionados 81 frames (1 a cada 3), redimensionados para
+  960px de largura e comprimidos em WebP — **~872 KB no total, ~11 KB por
+  frame** — servidos de `public/sequence/`. Um `<canvas>` desenha o frame
+  correspondente à posição de rolagem (técnica "scroll-scrub" no estilo
+  Apple): a página reserva uma faixa de rolagem de 280vh pinada
+  (`position: sticky`) durante a qual o usuário "rola" através da animação
+  de montagem do emblema, quadro a quadro, com base na referência real —
+  sem tentar recriar a peça proceduralmente.
+- **Fallback obrigatório**: detecção de `prefers-reduced-motion` e heurística
+  de mobile de baixo desempenho (`deviceMemory`/`saveData`) — nesses casos
+  não há rolagem "sequestrada": a seção volta a ser um hero de altura normal
+  (`min-h-screen`) com a imagem do frame final como fundo estático, com
+  `alt` descritivo (mesma imagem serve de alternativa para leitores de tela).
+- **Carregamento progressivo**: o primeiro frame carrega com prioridade alta
+  e aparece imediatamente; os demais 80 carregam em segundo plano
+  (`fetchPriority="low"`) enquanto a página já está interativa. Isso evita
+  penalizar o LCP do resto do site.
+- **Sem dependência de WebGL/Three.js**: a versão anterior usava React Three
+  Fiber; foi abandonada em favor da sequência de imagens por ser mais fiel
+  à referência, mais leve (~0.87 MB vs. bundle Three.js) e por eliminar de
+  vez os problemas de CSP com fetch de HDRI externo que a versão 3D tinha.
 - **Paleta e tipografia**: tokens `ivory`/`gold`/`charcoal` no Tailwind,
   Cormorant Garamond / Montserrat / IBM Plex Mono via `next/font/google`.
 - **Seções**: Hero, Sobre, Áreas de Atuação, Equipe, Contato, Rodapé —
@@ -76,10 +84,11 @@ conversa. Estes pontos estão marcados com `TODO` no código:
 
 ```
 app/                    App Router: layout, home, rota de API de contato
-components/Hero3D/      Cena 3D (Pedestal, Emblem, Scene) + fallback estático
+components/HeroSequence/  Sequência de frames scroll-driven + fallback estático
 components/sections/    Hero, About, PracticeAreas, Team, Contact, Footer
 components/             Nav, ContactForm
 data/                   practiceAreas.ts, team.ts
 lib/                    validation.ts, rateLimit.ts
-public/                 emblem-poster.jpg (fallback/OG), og-image.jpg
+public/sequence/        81 frames WebG (frame-001.webp … frame-081.webp)
+public/                 emblem-poster.webp (fallback/último frame), og-image.jpg
 ```

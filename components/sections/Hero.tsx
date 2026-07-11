@@ -1,4 +1,4 @@
-import Hero3D from "@/components/Hero3D";
+import HeroSequence from "@/components/HeroSequence";
 
 const WHATSAPP_NUMBER = "5511000000000"; // TODO: substituir pelo número real
 const WHATSAPP_MESSAGE = "Olá, gostaria de agendar uma conversa com a DRC Advogados.";
@@ -7,14 +7,10 @@ export default function Hero() {
   const whatsappHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(WHATSAPP_MESSAGE)}`;
 
   return (
-    <section className="relative flex min-h-screen w-full items-center overflow-hidden bg-ivory">
-      <div className="absolute inset-0">
-        <Hero3D />
-      </div>
-
-      <div className="relative z-10 w-full">
+    <HeroSequence>
+      <div className="flex h-full items-center">
         <div className="container-editorial">
-          <div className="max-w-xl py-32 md:py-0">
+          <div className="max-w-xl">
             <p className="eyebrow mb-6">DRC Advogados</p>
             <h1 className="text-4xl leading-tight text-charcoal md:text-6xl">
               Advocacia corporativa com rigor e discrição.
@@ -34,6 +30,6 @@ export default function Hero() {
           </div>
         </div>
       </div>
-    </section>
+    </HeroSequence>
   );
 }
