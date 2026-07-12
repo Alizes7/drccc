@@ -1,37 +1,39 @@
 /** @type {import('next').NextConfig} */
 
-const ContentSecurityPolicy = `
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval';
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob:;
-  font-src 'self';
-  connect-src 'self';
-  frame-ancestors 'none';
-  base-uri 'self';
-  form-action 'self';
-  object-src 'none';
-`.replace(/\s{2,}/g, " ").trim();
-
 const securityHeaders = [
-  { key: "Content-Security-Policy", value: ContentSecurityPolicy },
-  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains; preload" },
-  { key: "X-Frame-Options", value: "DENY" },
+  { key: "X-Frame-Options", value: "SAMEORIGIN" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains; preload" },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com",
+      "img-src 'self' data: https://*.google.com https://*.googleapis.com https://*.gstatic.com",
+      "frame-src https://www.google.com",
+      "connect-src 'self' https://formspree.io",
+      "form-action 'self' https://formspree.io",
+      "upgrade-insecure-requests",
+      "block-all-mixed-content",
+    ].join("; "),
+  },
 ];
 
 const nextConfig = {
-  reactStrictMode: true,
-  poweredByHeader: false,
+  output: "export",
+  images: { unoptimized: true },
+  trailingSlash: true,
+
+  // Static hosts use public/_headers; this also protects server-mode previews.
   async headers() {
-    return [
-      {
-        source: "/:path*",
-        headers: securityHeaders,
-      },
-    ];
+    return [{ source: "/(.*)", headers: securityHeaders }];
   },
 };
 

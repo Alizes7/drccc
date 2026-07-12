@@ -4,29 +4,31 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && node scripts/prepare-sites-output.mjs",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "eslint .",
+    "test:sequence": "node --test tests/scroll-sequence.test.mjs",
+    "security:check": "node scripts/security-check.mjs",
+    "validate:frames": "node scripts/validate-frame-sequence.mjs"
   },
   "dependencies": {
-    "next": "14.2.5",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "framer-motion": "^11.3.8",
-    "clsx": "^2.1.1",
-    "@fontsource/cormorant-garamond": "^5.2.11",
-    "@fontsource/montserrat": "^5.2.8",
-    "@fontsource/ibm-plex-mono": "^5.2.7"
+    "clsx": "^2.1.0",
+    "framer-motion": "^11.0.0",
+    "lucide-react": "^0.344.0",
+    "next": "^16.2.10",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "tailwind-merge": "^2.2.0"
   },
   "devDependencies": {
-    "typescript": "^5.5.3",
-    "@types/node": "^20.14.11",
-    "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
-    "autoprefixer": "^10.4.19",
-    "postcss": "^8.4.39",
-    "tailwindcss": "^3.4.6",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "14.2.5"
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "autoprefixer": "^10.4.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.2.10",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "typescript": "^5.3.0"
   }
 }
