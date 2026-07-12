@@ -19,6 +19,14 @@ durante o build (`next/font/google`).
 
 ## O que foi implementado conforme o briefing
 
+- **Fontes self-hosted**: Cormorant Garamond, Montserrat e IBM Plex Mono são
+  servidas via `@fontsource/*` (arquivos de fonte embutidos no pacote npm),
+  não via `next/font/google`. O build anterior falhava sempre que o
+  ambiente de build não conseguia alcançar `fonts.googleapis.com` — isso
+  foi eliminado por completo: build e runtime não dependem de nenhuma
+  rede externa para tipografia. A CSP também foi apertada (removidas as
+  permissões para `fonts.googleapis.com`/`fonts.gstatic.com`, já que não
+  são mais necessárias).
 - **Hero com sequência de frames scroll-driven**: em vez de recriar o emblema
   em 3D, o hero usa diretamente os 240 frames de referência que você
   forneceu. Foram selecionados 81 frames (1 a cada 3), redimensionados para

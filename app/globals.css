@@ -3,6 +3,12 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --font-cormorant: "Cormorant Garamond", Georgia, serif;
+    --font-montserrat: "Montserrat", Helvetica, Arial, sans-serif;
+    --font-plex-mono: "IBM Plex Mono", monospace;
+  }
+
   html {
     scroll-behavior: smooth;
   }

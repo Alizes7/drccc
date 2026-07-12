@@ -1,27 +1,20 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Montserrat, IBM_Plex_Mono } from "next/font/google";
+
+// Self-hosted fonts: the font files ship inside these npm packages, so
+// there's no runtime or *build-time* fetch to fonts.googleapis.com. The
+// previous next/font/google setup failed the Vercel build whenever that
+// fetch was unreachable — this removes that failure mode entirely, and
+// also lets the CSP drop its Google Fonts allowances (see next.config.js).
+import "@fontsource/cormorant-garamond/400.css";
+import "@fontsource/cormorant-garamond/500.css";
+import "@fontsource/cormorant-garamond/600.css";
+import "@fontsource/montserrat/300.css";
+import "@fontsource/montserrat/400.css";
+import "@fontsource/montserrat/500.css";
+import "@fontsource/montserrat/600.css";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
 import "./globals.css";
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-cormorant",
-  display: "swap",
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  variable: "--font-montserrat",
-  display: "swap",
-});
-
-const plexMono = IBM_Plex_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-plex-mono",
-  display: "swap",
-});
 
 const siteUrl = "https://www.drcadvogados.com.br";
 
@@ -74,7 +67,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${cormorant.variable} ${montserrat.variable} ${plexMono.variable}`}>
+    <html lang="pt-BR">
       <body>{children}</body>
     </html>
   );
